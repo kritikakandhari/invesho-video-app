@@ -9,6 +9,7 @@ from moviepy.editor import VideoFileClip, CompositeVideoClip, ImageClip
 import google.generativeai as genai
 import tempfile
 import cv2
+import imageio_ffmpeg
 
 # --- Constants ---
 FONT_PATH = "ui/font.ttf"
@@ -16,8 +17,8 @@ BG_IMAGE = "ui/bg_template.jpg"
 WIDTH, HEIGHT = 720, 1280
 INVESHO_BLUE = "#4285F4"
 WHITE_COLOR = "#FFFFFF"
-FFPROBE_PATH = "ffprobe"
 FFMPEG_PATH = "ffmpeg"
+
 # --- Load API Keys ---
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -39,10 +40,10 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
     import subprocess
 
-    # Removed unnecessary file check — ffprobe will throw an error if missing
+    ffprobe_path = imageio_ffmpeg.get_ffprobe_exe()
 
     cmd = [
-        FFPROBE_PATH,
+        ffprobe_path,
         "-i", video_path,
         "-show_streams",
         "-select_streams", "a",
@@ -93,9 +94,6 @@ def download_instagram_video(insta_url):
 
     cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
 
-    if not os.path.exists(FFPROBE_PATH):
-        raise RuntimeError("⚠️ ffprobe.exe not found via imageio-ffmpeg. Please install or set manually.")
-
     # Extract reel ID
     match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
     if not match:
@@ -115,13 +113,12 @@ def download_instagram_video(insta_url):
         "cachedir": False,
         "quiet": True,
         "no_warnings": True,
-        "cookiefile": cookie_path,  # <--- use this file
+        "cookiefile": cookie_path,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(clean_url, download=True)
         return ydl.prepare_filename(info)
-
 
 # --- Render Header Text ---
 def render_stacked_header(title_text, quote_text, size, duration):
@@ -161,7 +158,6 @@ def generate_subtitles(video, srt_path):
     return subtitles
 
 # --- Branding ---
-
 def render_branding_text(duration):
     brand_font = ImageFont.truetype(FONT_PATH, 50)
     tagline_font = ImageFont.truetype(FONT_PATH, 18)
@@ -180,7 +176,6 @@ def render_branding_text(duration):
             .set_duration(duration)
             .set_position(("right", "bottom"))
             .margin(right=80, bottom=100, opacity=0))
-
 
 # --- Video Composer ---
 def create_final_video(video_path, title_text, quote_text, max_duration):
@@ -254,6 +249,7 @@ def main():
                 st.error("Instagram login required. Please make sure you're logged into Instagram in Chrome.")
             else:
                 st.error(f"Error processing video: {e}")
+            return
 
         try:
             with st.spinner("🔤 Step 2/4: Transcribing video..."):
