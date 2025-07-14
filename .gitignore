@@ -21,3 +21,5 @@ Thumbs.db
 
 # Streamlit config cache
 .streamlit/config.toml
+
+cookies.txt

@@ -92,12 +92,10 @@ def download_instagram_video(insta_url):
     import re
     import uuid
     import imageio_ffmpeg
-    import browser_cookie3
 
-    # Get ffmpeg binary path using imageio-ffmpeg
     ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
-    # Extract reel ID from URL
+    # Extract reel ID
     match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
     if not match:
         raise ValueError("Invalid Instagram Reel URL")
@@ -107,10 +105,6 @@ def download_instagram_video(insta_url):
     unique_id = str(uuid.uuid4())[:8]
     os.makedirs("downloads", exist_ok=True)
 
-    # Load Instagram cookies from Chrome (you must be logged in to Instagram in Chrome)
-    cookies = browser_cookie3.load(domain_name='instagram.com')
-
-    # yt-dlp options
     ydl_opts = {
         "ffmpeg_location": ffmpeg_path,
         "format": "bestvideo+bestaudio/best",
@@ -120,14 +114,12 @@ def download_instagram_video(insta_url):
         "cachedir": False,
         "quiet": True,
         "no_warnings": True,
-        "cookiefile": None,
-        "http_headers": {"Cookie": "; ".join([f"{c.name}={c.value}" for c in cookies])}
+        "cookiefile": "instagram_cookies.txt",  # <--- use this file
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(clean_url, download=True)
         return ydl.prepare_filename(info)
-
 
 
 # --- Render Header Text ---
