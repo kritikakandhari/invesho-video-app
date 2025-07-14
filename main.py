@@ -92,10 +92,9 @@ def generate_short_quote(transcript):
 def download_instagram_video(insta_url):
     import re
     import uuid
-    import imageio_ffmpeg
+    FFPROBE_PATH = "ffprobe"
+    FFMPEG_PATH = "ffmpeg"
 
-    FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
-    FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
     cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
 
     if not os.path.exists(FFPROBE_PATH):
