@@ -30,6 +30,7 @@ downloads/
 
 # Instagram cookies file
 cookies
+cookies.txt
 
 # Temp/Cache
 *.tmp

@@ -14,10 +14,10 @@ import cv2
 FONT_PATH = "ui/font.ttf"
 BG_IMAGE = "ui/bg_template.jpg"
 WIDTH, HEIGHT = 720, 1280
-INVSHO_BLUE = "#4285F4"
+INVESHO_BLUE = "#4285F4"
 WHITE_COLOR = "#FFFFFF"
-FFPROBE_PATH = r"C:\\Users\\Kritika Kandhari\\OneDrive\\Desktop\\ffmpeg\\ffmpeg-7.1.1-essentials_build\\bin\\ffprobe.exe"
-
+import imageio_ffmpeg
+FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
 # --- Load API Keys ---
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -93,7 +93,7 @@ def download_instagram_video(insta_url):
     import uuid
     import imageio_ffmpeg
 
-    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+    FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
     cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
 
     # Extract reel ID
@@ -107,7 +107,7 @@ def download_instagram_video(insta_url):
     os.makedirs("downloads", exist_ok=True)
 
     ydl_opts = {
-        "ffmpeg_location": ffmpeg_path,
+        "ffmpeg_location": FFPROBE_PATH,
         "format": "bestvideo+bestaudio/best",
         "outtmpl": f"downloads/video_{unique_id}.%(ext)s",
         "nocheckcertificate": True,
