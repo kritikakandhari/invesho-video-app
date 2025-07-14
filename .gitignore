@@ -1,4 +1,4 @@
-# Python virtual environment
+# Python virtual environments
 .venv/
 env/
 ENV/
@@ -8,18 +8,29 @@ venv/
 __pycache__/
 *.py[cod]
 
-# Environment variables
+# Environment variables and secrets
 .env
 *.env
 
-# OS files
+# OS-generated files
 .DS_Store
 Thumbs.db
 
 # Logs
 *.log
 
-# Streamlit config cache
+# Streamlit config/cache
+.streamlit/
 .streamlit/config.toml
 
-cookies.txt
+# Downloaded content
+downloads/
+*.mp4
+*.srt
+
+# Instagram cookies file
+cookies
+
+# Temp/Cache
+*.tmp
+*.bak

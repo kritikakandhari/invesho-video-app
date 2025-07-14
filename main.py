@@ -94,6 +94,7 @@ def download_instagram_video(insta_url):
     import imageio_ffmpeg
 
     ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+    cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
 
     # Extract reel ID
     match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
@@ -114,7 +115,7 @@ def download_instagram_video(insta_url):
         "cachedir": False,
         "quiet": True,
         "no_warnings": True,
-        "cookiefile": "instagram_cookies.txt",  # <--- use this file
+        "cookiefile": cookie_path,  # <--- use this file
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
