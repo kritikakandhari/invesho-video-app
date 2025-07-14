@@ -18,6 +18,7 @@ INVESHO_BLUE = "#4285F4"
 WHITE_COLOR = "#FFFFFF"
 import imageio_ffmpeg
 FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
+FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
 # --- Load API Keys ---
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -94,7 +95,11 @@ def download_instagram_video(insta_url):
     import imageio_ffmpeg
 
     FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
+    FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
     cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
+
+    if not os.path.exists(FFPROBE_PATH):
+        raise RuntimeError("⚠️ ffprobe.exe not found via imageio-ffmpeg. Please install or set manually.")
 
     # Extract reel ID
     match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
@@ -107,7 +112,7 @@ def download_instagram_video(insta_url):
     os.makedirs("downloads", exist_ok=True)
 
     ydl_opts = {
-        "ffmpeg_location": FFPROBE_PATH,
+        "ffmpeg_location": os.path.dirname(FFMPEG_PATH),
         "format": "bestvideo+bestaudio/best",
         "outtmpl": f"downloads/video_{unique_id}.%(ext)s",
         "nocheckcertificate": True,
