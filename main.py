@@ -17,7 +17,8 @@ BG_IMAGE = "ui/bg_template.jpg"
 WIDTH, HEIGHT = 720, 1280
 INVESHO_BLUE = "#4285F4"
 WHITE_COLOR = "#FFFFFF"
-FFMPEG_PATH = "ffmpeg"
+FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
+FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
 
 # --- Load API Keys ---
 load_dotenv()
@@ -40,10 +41,8 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
     import subprocess
 
-    ffprobe_path = imageio_ffmpeg.get_ffprobe_exe()
-
     cmd = [
-        ffprobe_path,
+        FFPROBE_PATH,
         "-i", video_path,
         "-show_streams",
         "-select_streams", "a",
@@ -94,7 +93,6 @@ def download_instagram_video(insta_url):
 
     cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
 
-    # Extract reel ID
     match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
     if not match:
         raise ValueError("Invalid Instagram Reel URL")
