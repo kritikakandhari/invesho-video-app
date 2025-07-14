@@ -92,6 +92,7 @@ def download_instagram_video(insta_url):
     import re
     import uuid
     import imageio_ffmpeg
+    import browser_cookie3
 
     # Get ffmpeg binary path using imageio-ffmpeg
     ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
@@ -106,7 +107,10 @@ def download_instagram_video(insta_url):
     unique_id = str(uuid.uuid4())[:8]
     os.makedirs("downloads", exist_ok=True)
 
-    # yt_dlp options
+    # Load Instagram cookies from Chrome (you must be logged in to Instagram in Chrome)
+    cookies = browser_cookie3.load(domain_name='instagram.com')
+
+    # yt-dlp options
     ydl_opts = {
         "ffmpeg_location": ffmpeg_path,
         "format": "bestvideo+bestaudio/best",
@@ -116,12 +120,14 @@ def download_instagram_video(insta_url):
         "cachedir": False,
         "quiet": True,
         "no_warnings": True,
+        "cookiefile": None,
+        "http_headers": {"Cookie": "; ".join([f"{c.name}={c.value}" for c in cookies])}
     }
 
-    # Download video
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(clean_url, download=True)
         return ydl.prepare_filename(info)
+
 
 
 # --- Render Header Text ---
@@ -251,8 +257,10 @@ def main():
                 else:
                     video_path = download_instagram_video(insta_url)
         except Exception as e:
-            st.error(f"Error processing video: {e}")
-            return
+            if "login required" in str(e).lower():
+                st.error("Instagram login required. Please make sure you're logged into Instagram in Chrome.")
+            else:
+                st.error(f"Error processing video: {e}")
 
         try:
             with st.spinner("🔤 Step 2/4: Transcribing video..."):
