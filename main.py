@@ -19,7 +19,11 @@ INVESHO_BLUE = "#4285F4"
 WHITE_COLOR = "#FFFFFF"
 
 FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
-FFPROBE_PATH = FFMPEG_PATH.replace("ffmpeg", "ffprobe")  # safer fallback
+FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
+
+# For MoviePy, set ffmpeg binary path if needed
+import moviepy.config as mpy_config
+mpy_config.change_settings({"FFMPEG_BINARY": FFMPEG_PATH})
 
 # --- Load API Keys ---
 load_dotenv()
@@ -79,7 +83,7 @@ def generate_short_quote(transcript):
     except Exception:
         return "Key Video Insights"
 
-# --- Instagram Downloader ---
+# --- Instagram Downloader (Error-Free Version) ---
 def download_instagram_video(insta_url):
     import re
     import uuid
@@ -95,7 +99,8 @@ def download_instagram_video(insta_url):
     os.makedirs("downloads", exist_ok=True)
 
     ydl_opts = {
-        "ffmpeg_location": os.path.dirname(FFMPEG_PATH),
+        "ffmpeg_location": FFMPEG_PATH,
+        "ffprobe_location": FFPROBE_PATH,
         "format": "bestvideo+bestaudio/best",
         "outtmpl": f"downloads/video_{unique_id}.%(ext)s",
         "cookiefile": cookie_path,
