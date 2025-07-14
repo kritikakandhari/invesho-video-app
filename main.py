@@ -19,7 +19,10 @@ INVESHO_BLUE = "#4285F4"
 WHITE_COLOR = "#FFFFFF"
 
 FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
-FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
+try:
+    FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
+except AttributeError:
+    FFPROBE_PATH = FFMPEG_PATH.replace("ffmpeg", "ffprobe")
 
 # For MoviePy, set ffmpeg binary path if needed
 import moviepy.config as mpy_config
