@@ -134,7 +134,7 @@ def render_stacked_header(title_text, quote_text, size, duration):
     title_height = title_bbox[3] - title_bbox[1]
     title_x = (size[0] - title_width) / 2
     title_y = (size[1] / 2) - title_height
-    draw.text((title_x, title_y), title_text, font=title_font, fill=INVSHO_BLUE)
+    draw.text((title_x, title_y), title_text, font=title_font, fill=INVESHO_BLUE)
     quote_bbox = draw.textbbox((0, 0), quote_text, font=quote_font)
     quote_width = quote_bbox[2] - quote_bbox[0]
     quote_x = (size[0] - quote_width) / 2
@@ -173,7 +173,7 @@ def render_branding_text(duration):
     brand_bbox = draw.textbbox((0,0), brand_text, font=brand_font)
     tagline1_bbox = draw.textbbox((0,0), tagline_text1, font=tagline_font)
     tagline2_bbox = draw.textbbox((0,0), tagline_text2, font=tagline_font)
-    draw.text((500 - (brand_bbox[2]-brand_bbox[0]), 0), brand_text, font=brand_font, fill=INVSHO_BLUE)
+    draw.text((500 - (brand_bbox[2]-brand_bbox[0]), 0), brand_text, font=brand_font, fill=INVESHO_BLUE)
     draw.text((500 - (tagline1_bbox[2]-tagline1_bbox[0]), 60), tagline_text1, font=tagline_font, fill=WHITE_COLOR)
     draw.text((500 - (tagline2_bbox[2]-tagline2_bbox[0]), 85), tagline_text2, font=tagline_font, fill=WHITE_COLOR)
     return (ImageClip(np.array(img))
