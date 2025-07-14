@@ -190,14 +190,14 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
 # --- Streamlit App ---
 def main():
     st.set_page_config(page_title="Invesho Insta Generator", layout="centered")
-    st.title("📥 Invesho Instagram Reel Generator")
+    st.title("\ud83d\udcc5 Invesho Instagram Reel Generator")
 
     st.markdown("### 1. Provide a Video")
     col1, col2 = st.columns(2)
     with col1:
-        insta_url = st.text_input("📎 Instagram Reel URL")
+        insta_url = st.text_input("\ud83d\udcce Instagram Reel URL")
     with col2:
-        uploaded_file = st.file_uploader("📤 Or Upload a video (MP4/MOV/WEBM)", type=["mp4", "mov", "webm"])
+        uploaded_file = st.file_uploader("\ud83d\udcc4 Or Upload a video (MP4/MOV/WEBM)", type=["mp4", "mov", "webm"])
 
     title_text_input = st.text_input("2. Enter Main Title", "Mark Zuckerberg")
     st.subheader("Settings")
@@ -205,12 +205,12 @@ def main():
     use_subs = st.checkbox("Add In-Video Subtitles", value=True)
     st.divider()
 
-    if st.button("🎬 Generate Video", type="primary"):
+    if st.button("\ud83c\udfae Generate Video", type="primary"):
         if not (insta_url or uploaded_file) or not title_text_input:
             st.warning("Please provide a video file or Instagram URL and a title.")
             return
         try:
-            with st.spinner("📥 Step 1/4: Getting video..."):
+            with st.spinner("\ud83d\udcc5 Step 1/4: Getting video..."):
                 video_path = None
                 if uploaded_file:
                     temp_path = os.path.join("downloads", uploaded_file.name)
@@ -225,22 +225,22 @@ def main():
             return
 
         try:
-            with st.spinner("🔤 Step 2/4: Transcribing video..."):
+            with st.spinner("\ud83d\udd24 Step 2/4: Transcribing video..."):
                 transcript = transcribe_video_and_get_text(video_path, max_duration=video_duration)
         except RuntimeError as e:
             st.error(str(e))
             return
 
-        with st.spinner("🤖 Step 3/4: Generating AI quote..."):
+        with st.spinner("\ud83e\udd16 Step 3/4: Generating AI quote..."):
             quote = generate_short_quote(transcript)
 
-        with st.spinner("🎬 Step 4/4: Creating final video..."):
+        with st.spinner("\ud83c\udfae Step 4/4: Creating final video..."):
             create_final_video(video_path, title_text_input, quote, video_duration)
 
-        st.success("✅ Done! Watch below:")
+        st.success("\u2705 Done! Watch below:")
         st.video("final_with_subs.mp4")
         with open("final_with_subs.mp4", "rb") as file:
-            st.download_button("⬇ Download Video", file, "invesho_reel.mp4")
+            st.download_button("\u2b07 Download Video", file, "invesho_reel.mp4")
 
 if __name__ == "__main__":
     main()
