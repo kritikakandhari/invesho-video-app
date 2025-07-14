@@ -91,7 +91,12 @@ def generate_short_quote(transcript):
 def download_instagram_video(insta_url):
     import re
     import uuid
+    import imageio_ffmpeg
 
+    # Get ffmpeg binary path using imageio-ffmpeg
+    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+
+    # Extract reel ID from URL
     match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
     if not match:
         raise ValueError("Invalid Instagram Reel URL")
@@ -101,8 +106,9 @@ def download_instagram_video(insta_url):
     unique_id = str(uuid.uuid4())[:8]
     os.makedirs("downloads", exist_ok=True)
 
+    # yt_dlp options
     ydl_opts = {
-        "ffmpeg_location": r"C:\\Users\\Kritika Kandhari\\Downloads\\ffmpeg",
+        "ffmpeg_location": ffmpeg_path,
         "format": "bestvideo+bestaudio/best",
         "outtmpl": f"downloads/video_{unique_id}.%(ext)s",
         "nocheckcertificate": True,
@@ -112,9 +118,11 @@ def download_instagram_video(insta_url):
         "no_warnings": True,
     }
 
+    # Download video
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(clean_url, download=True)
         return ydl.prepare_filename(info)
+
 
 # --- Render Header Text ---
 def render_stacked_header(title_text, quote_text, size, duration):
