@@ -16,9 +16,8 @@ BG_IMAGE = "ui/bg_template.jpg"
 WIDTH, HEIGHT = 720, 1280
 INVESHO_BLUE = "#4285F4"
 WHITE_COLOR = "#FFFFFF"
-import imageio_ffmpeg
-FFPROBE_PATH = imageio_ffmpeg.get_ffprobe_exe()
-FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
+FFPROBE_PATH = "ffprobe"
+FFMPEG_PATH = "ffmpeg"
 # --- Load API Keys ---
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
