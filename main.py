@@ -39,8 +39,7 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
     import subprocess
 
-    if not os.path.exists(FFPROBE_PATH):
-        raise RuntimeError("ffprobe.exe not found! Please check your path.")
+    # Removed unnecessary file check — ffprobe will throw an error if missing
 
     cmd = [
         FFPROBE_PATH,
@@ -91,8 +90,6 @@ def generate_short_quote(transcript):
 def download_instagram_video(insta_url):
     import re
     import uuid
-    FFPROBE_PATH = "ffprobe"
-    FFMPEG_PATH = "ffmpeg"
 
     cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
 
