@@ -201,32 +201,37 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
     branding = render_branding_text(video.duration)
     layers = [bg, video, header, branding]
     if os.path.exists("final.srt"):
-        layers.extend(generate_subtitles(video, "final.srt"))
+        layers.extend(generate_subtitles(video, "final.srt", video_y_offset=video.pos[1]))
     final = CompositeVideoClip(layers)
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
 
-# --- Branding & Subtitles ---
-VIDEO_Y_OFFSET = 100  # y-position of video on background
 
-def generate_subtitles(video, srt_path):
+
+# Load video
+video = VideoFileClip("invesho_reel (2).mp4")
+video_position_y = 100  # Jitna background pe video offset hai (agar koi ho)
+
+# Subtitle function
+def generate_subtitles(video, srt_path, video_y_offset=0):
     subs = pysrt.open(srt_path)
-    font = ImageFont.truetype(FONT_PATH, 24)
+    font = ImageFont.truetype("Arial.ttf", 36)  # Change font if needed
+
     subtitle_clips = []
-    
+
     for sub in subs:
         start = sub.start.ordinal / 1000.0
-        duration = sub.duration.seconds + sub.duration.milliseconds / 1000.0
+        duration = sub.duration.ordinal / 1000.0
         text = sub.text.replace("\n", " ")
-        
-        img = Image.new("RGBA", (video.w, 50), (0, 0, 0, 0))
+
+        img = Image.new("RGBA", (video.w, 60), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         bbox = draw.textbbox((0, 0), text, font=font)
-        
+
         draw.text(
-            ((video.w - bbox[2]) / 2, (50 - bbox[3]) / 2),
+            ((video.w - bbox[2]) / 2, (60 - bbox[3]) / 2),
             text,
             font=font,
-            fill=WHITE_COLOR
+            fill=(255, 255, 255, 255)
         )
 
         subtitle = (
@@ -235,13 +240,25 @@ def generate_subtitles(video, srt_path):
             .set_start(start)
             .set_position((
                 "center",
-                VIDEO_Y_OFFSET + video.h - 60  # 👈 subtitle aligned to video bottom
+                video_y_offset + video.h - 70  # 👈 Subtitle placed on VIDEO bottom
             ))
         )
-        
+
         subtitle_clips.append(subtitle)
-    
+
     return subtitle_clips
+
+# Example call
+subtitles = generate_subtitles(video, "your_subtitles.srt", video_y_offset=100)
+
+# Combine (Assuming background or canvas is being used)
+final = CompositeVideoClip([
+    # background,  # If using any
+    video.set_position(("center", 100)),
+    *subtitles
+], size=(1080, 1920))  # change size if needed
+
+final.write_videofile("final_with_subs.mp4", fps=30)
 
 
 def render_stacked_header(title, quote, size, duration):
