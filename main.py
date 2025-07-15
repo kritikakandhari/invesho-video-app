@@ -209,7 +209,8 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
 
     # Add subtitles only if .srt file exists
     if os.path.exists("final.srt"):
-        layers.extend(generate_subtitles(video, "final.srt", video_y_offset=video.pos[1]))
+        layers.extend(generate_subtitles(video, "final.srt", video_y_offset=100))
+ 
 
     final = CompositeVideoClip(layers, size=(WIDTH, HEIGHT))
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
