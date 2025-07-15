@@ -206,6 +206,8 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
 
 # --- Branding & Subtitles ---
+VIDEO_Y_OFFSET = 100  # y-position of video on background
+
 def generate_subtitles(video, srt_path):
     subs = pysrt.open(srt_path)
     font = ImageFont.truetype(FONT_PATH, 24)
@@ -231,7 +233,10 @@ def generate_subtitles(video, srt_path):
             ImageClip(np.array(img))
             .set_duration(duration)
             .set_start(start)
-            .set_position(("center", video.h - 60))  # 👈 yeh line video ke bottom pe subtitle laati hai
+            .set_position((
+                "center",
+                VIDEO_Y_OFFSET + video.h - 60  # 👈 subtitle aligned to video bottom
+            ))
         )
         
         subtitle_clips.append(subtitle)
