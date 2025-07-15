@@ -218,7 +218,7 @@ def generate_subtitles(video, srt_path):
         draw = ImageDraw.Draw(img)
         bbox = draw.textbbox((0, 0), text, font=font)
         draw.text(((video.w - bbox[2]) / 2, (40 - bbox[3]) / 2), text, font=font, fill=WHITE_COLOR)
-        subtitle_clips.append(ImageClip(np.array(img)).set_duration(duration).set_start(start).set_position(("center", video.h - 50)))
+        subtitle_clips.append(ImageClip(np.array(img)).set_duration(duration).set_start(start).set_position(("center", video.h)))
     return subtitle_clips
 
 def render_stacked_header(title, quote, size, duration):
