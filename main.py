@@ -59,6 +59,7 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
     def patched_load_audio(file: str, sr: int = 16000):
         import numpy as np
         import tempfile
+        import soundfile as sf
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             wav_path = tmp.name
@@ -73,9 +74,14 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
             "-f", "wav",
             wav_path
         ]
-        subprocess.run(cmd, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
 
-        import soundfile as sf
+        if result.returncode != 0:
+            raise RuntimeError(f"FFmpeg error: {result.stderr}")
+
+        if not os.path.exists(wav_path):
+            raise FileNotFoundError("Failed to create WAV file.")
+ 
         audio, _ = sf.read(wav_path)
         return whisper.audio.pad_or_trim(audio)
 
