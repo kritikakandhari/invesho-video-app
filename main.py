@@ -210,16 +210,34 @@ def generate_subtitles(video, srt_path):
     subs = pysrt.open(srt_path)
     font = ImageFont.truetype(FONT_PATH, 24)
     subtitle_clips = []
+    
     for sub in subs:
         start = sub.start.ordinal / 1000.0
         duration = sub.duration.seconds + sub.duration.milliseconds / 1000.0
         text = sub.text.replace("\n", " ")
-        img = Image.new("RGBA", (video.w, 40), (0, 0, 0, 0))
+        
+        img = Image.new("RGBA", (video.w, 50), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         bbox = draw.textbbox((0, 0), text, font=font)
-        draw.text(((video.w - bbox[2]) / 2, (40 - bbox[3]) / 2), text, font=font, fill=WHITE_COLOR)
-        subtitle_clips.append(ImageClip(np.array(img)).set_duration(duration).set_start(start).set_position(("center", video.h)))
+        
+        draw.text(
+            ((video.w - bbox[2]) / 2, (50 - bbox[3]) / 2),
+            text,
+            font=font,
+            fill=WHITE_COLOR
+        )
+
+        subtitle = (
+            ImageClip(np.array(img))
+            .set_duration(duration)
+            .set_start(start)
+            .set_position(("center", video.h - 60))  # 👈 yeh line video ke bottom pe subtitle laati hai
+        )
+        
+        subtitle_clips.append(subtitle)
+    
     return subtitle_clips
+
 
 def render_stacked_header(title, quote, size, duration):
     title_font = ImageFont.truetype(FONT_PATH, 50)
