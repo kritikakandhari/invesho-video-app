@@ -1,16 +1,25 @@
 # main.py
 import os
+import re
+import uuid
 import numpy as np
-import yt_dlp
+import tempfile
+import subprocess
+import datetime
+
+import whisper
+import soundfile as sf
 import pysrt
+import cv2
+import imageio_ffmpeg
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
-from moviepy.editor import VideoFileClip, CompositeVideoClip, ImageClip, AudioFileClip
+from moviepy.editor import (
+    VideoFileClip, CompositeVideoClip, ImageClip, AudioFileClip
+)
 import google.generativeai as genai
-import tempfile
-import cv2
-import imageio_ffmpeg
+import yt_dlp
 import moviepy.config as mpy_config
 
 # --- Constants ---
@@ -27,6 +36,7 @@ mpy_config.change_settings({"FFMPEG_BINARY": FFMPEG_PATH})
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
+
 # --- Auto-Crop ---
 def auto_crop(video_clip):
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
@@ -39,52 +49,35 @@ def auto_crop(video_clip):
     y1, y2 = ys.min(), ys.max()
     return video_clip.crop(x1=x1, y1=y1, x2=x2, y2=y2)
 
+
 # --- Transcription ---
 def transcribe_video_and_get_text(video_path, max_duration=None):
-    import whisper
-    import whisper.audio
-    import subprocess
-    import tempfile
-    import soundfile as sf
-
-    # Verify the video has audio
     try:
         audio = AudioFileClip(video_path)
         audio.close()
     except Exception:
         raise RuntimeError("This video has no audio track. Please upload a video with sound.")
 
-    # Patch whisper.audio.load_audio to use our custom ffmpeg
     def patched_load_audio(file: str, sr: int = 16000):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             wav_path = tmp.name
 
         cmd = [
-            FFMPEG_PATH,
-            "-y",
-            "-i", file,
-            "-ac", "1",
-            "-ar", str(sr),
-            "-f", "wav",
-            wav_path
+            FFMPEG_PATH, "-y", "-i", file,
+            "-ac", "1", "-ar", str(sr),
+            "-f", "wav", wav_path
         ]
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
         if result.returncode != 0:
             raise RuntimeError(f"FFmpeg failed: {result.stderr.strip()}")
-
-        if not os.path.exists(wav_path):
-            raise FileNotFoundError("FFmpeg failed to create the WAV file.")
 
         audio, _ = sf.read(wav_path, dtype="float32")
         return whisper.audio.pad_or_trim(audio)
 
     whisper.audio.load_audio = patched_load_audio
-
     model = whisper.load_model("small")
     result = model.transcribe(video_path, language="en")
 
-    # Save transcript to .srt
     full_transcript = []
     with open("final.srt", "w", encoding="utf-8") as f:
         for i, segment in enumerate(result["segments"]):
@@ -100,21 +93,16 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
     return " ".join(full_transcript)
 
 
-
 # --- Time Formatter ---
 def format_srt_time(seconds):
-    import datetime
-    t = datetime.timedelta(seconds=seconds)
-    s = str(t)
-    if "." in s:
-        s, ms = s.split(".")
-        s = f"{s},{ms[:3]}"
-    else:
-        s += ",000"
-    parts = s.split(":")
-    return f"{int(parts[0]):02}:{int(parts[1]):02}:{parts[2]}"
+    t = str(datetime.timedelta(seconds=seconds))
+    if "." in t:
+        s, ms = t.split(".")
+        return f"{s},{ms[:3]}"
+    return f"{t},000"
 
-# --- Gemini Quote ---
+
+# --- Gemini Quote Generator ---
 def generate_short_quote(transcript):
     if not transcript:
         return "Key Insights"
@@ -130,7 +118,115 @@ def generate_short_quote(transcript):
     except Exception:
         return "Key Video Insights"
 
-# --- Streamlit App ---
+
+# --- Instagram Downloader ---
+def download_instagram_video(insta_url):
+    cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
+    match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
+    if not match:
+        raise ValueError("Invalid Instagram Reel URL")
+    reel_id = match.group(1)
+    clean_url = f"https://www.instagram.com/reel/{reel_id}/"
+    unique_id = str(uuid.uuid4())[:8]
+    os.makedirs("downloads", exist_ok=True)
+    ydl_opts = {
+        "ffmpeg_location": FFMPEG_PATH,
+        "format": "bestvideo+bestaudio/best",
+        "outtmpl": f"downloads/video_{unique_id}.%(ext)s",
+        "cookiefile": cookie_path,
+        "quiet": True,
+        "no_warnings": True,
+        "nocheckcertificate": True,
+        "noplaylist": True,
+        "cachedir": False,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(clean_url, download=True)
+        return ydl.prepare_filename(info)
+
+
+# --- Subtitle Generation ---
+def generate_subtitles(video, srt_path, video_top_y):
+    subs = pysrt.open(srt_path)
+    try:
+        font = ImageFont.truetype(FONT_PATH, 16)
+    except OSError:
+        font = ImageFont.load_default()
+
+    subtitle_clips = []
+    for sub in subs:
+        start = sub.start.ordinal / 1000.0
+        duration = sub.duration.ordinal / 1000.0
+        text = sub.text.replace("\n", " ")
+        dummy = Image.new("RGBA", (10, 10))
+        draw = ImageDraw.Draw(dummy)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        w, h = bbox[2], bbox[3]
+        img = Image.new("RGBA", (w + 10, h + 6), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.text((5, 3), text, font=font, fill=(255, 255, 255, 255))
+
+        subtitle = (
+            ImageClip(np.array(img))
+            .set_duration(duration)
+            .set_start(start)
+            .set_position(("center", video_top_y + 10))
+        )
+        subtitle_clips.append(subtitle)
+    return subtitle_clips
+
+
+# --- UI Rendering ---
+def render_stacked_header(title, quote, size, duration):
+    title_font = ImageFont.truetype(FONT_PATH, 50)
+    quote_font = ImageFont.truetype(FONT_PATH, 30)
+    img = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    title_bbox = draw.textbbox((0, 0), title, font=title_font)
+    quote_bbox = draw.textbbox((0, 0), quote, font=quote_font)
+    draw.text(((size[0] - title_bbox[2]) / 2, (size[1] / 2) - title_bbox[3]), title, font=title_font, fill=INVESHO_BLUE)
+    draw.text(((size[0] - quote_bbox[2]) / 2, (size[1] / 2) + 10), quote, font=quote_font, fill=WHITE_COLOR)
+    return ImageClip(np.array(img)).set_duration(duration)
+
+
+def render_branding_text(duration):
+    brand_font = ImageFont.truetype(FONT_PATH, 50)
+    tagline_font = ImageFont.truetype(FONT_PATH, 18)
+    img = Image.new("RGBA", (500, 120), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.text((0, 0), "Invesho", font=brand_font, fill=INVESHO_BLUE)
+    draw.text((0, 60), "Accelerating access to", font=tagline_font, fill=WHITE_COLOR)
+    draw.text((0, 85), "startup capital.", font=tagline_font, fill=WHITE_COLOR)
+    return ImageClip(np.array(img)).set_duration(duration).set_position(("right", "bottom")).margin(right=80, bottom=100)
+
+
+# --- Final Video Composer ---
+def create_final_video(video_path, title_text, quote_text, max_duration, use_subs):
+    raw_clip = VideoFileClip(video_path)
+    duration = min(max_duration, raw_clip.duration)
+    raw = raw_clip.subclip(0, duration)
+    cropped = auto_crop(raw)
+    video = cropped.resize(width=WIDTH - 40).set_position(("center", "center"))
+
+    mask = Image.new("L", video.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, video.size[0], video.size[1]], radius=40, fill=255)
+    video = video.set_mask(ImageClip(np.array(mask) / 255).set_duration(video.duration).set_ismask(True))
+
+    bg = ImageClip(BG_IMAGE).resize((WIDTH, HEIGHT)).set_duration(video.duration)
+    header = render_stacked_header(title_text, quote_text, (WIDTH, 200), video.duration).set_position(("center", "top"))
+    branding = render_branding_text(video.duration)
+
+    layers = [bg, video, header, branding]
+    video_top_y = (HEIGHT - video.size[1]) // 2
+
+    if use_subs and os.path.exists("final.srt"):
+        layers.extend(generate_subtitles(video, "final.srt", video_top_y))
+
+    final = CompositeVideoClip(layers, size=(WIDTH, HEIGHT))
+    final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
+
+
+# --- Streamlit Interface ---
 def main():
     st.set_page_config(page_title="Invesho Insta Generator", layout="centered")
     st.title("Invesho Instagram Reel Generator")
@@ -155,13 +251,12 @@ def main():
 
         try:
             with st.spinner("Step 1/4: Getting video..."):
-                video_path = None
                 if uploaded_file:
-                    temp_path = os.path.join("downloads", uploaded_file.name)
+                    path = os.path.join("downloads", uploaded_file.name)
                     os.makedirs("downloads", exist_ok=True)
-                    with open(temp_path, "wb") as f:
+                    with open(path, "wb") as f:
                         f.write(uploaded_file.read())
-                    video_path = temp_path
+                    video_path = path
                 else:
                     video_path = download_instagram_video(insta_url)
         except Exception as e:
@@ -181,129 +276,11 @@ def main():
         with st.spinner("Step 4/4: Creating final video..."):
             create_final_video(video_path, title_text_input, quote, video_duration, use_subs)
 
-
         st.success("Done! Watch below:")
         st.video("final_with_subs.mp4")
         with open("final_with_subs.mp4", "rb") as file:
             st.download_button("Download Video", file, "invesho_reel.mp4")
 
-# --- Final Video Composition ---
-# Final video creator (uses actual video file provided, no hardcoded name)
-def create_final_video(video_path, title_text, quote_text, max_duration, use_subs):
-    raw_clip = VideoFileClip(video_path)
-    duration = min(max_duration, raw_clip.duration)
-    raw = raw_clip.subclip(0, duration)
-
-    cropped = auto_crop(raw)
-    video = cropped.resize(width=WIDTH - 40).set_position(("center", "center"))
-
-    # Rounded corners mask
-    mask = Image.new("L", video.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle([0, 0, video.size[0], video.size[1]], radius=40, fill=255)
-    video = video.set_mask(ImageClip(np.array(mask) / 255).set_duration(video.duration).set_ismask(True))
-
-    bg = ImageClip(BG_IMAGE).resize((WIDTH, HEIGHT)).set_duration(video.duration)
-    header = render_stacked_header(title_text, quote_text, (WIDTH, 200), video.duration).set_position(("center", "top"))
-    branding = render_branding_text(video.duration)
-
-    layers = [bg, video, header, branding]
-
-    # Calculate top Y of video (for subtitles positioning)
-    video_top_y = (HEIGHT - video.size[1]) // 2
-
-    # Add subtitles only if .srt file exists
-    if use_subs and os.path.exists("final.srt"):
-        layers.extend(generate_subtitles(video, "final.srt", video_top_y))
-
-    final = CompositeVideoClip(layers, size=(WIDTH, HEIGHT))
-    final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
-
-# Subtitle generator (fixes the hardcoded video name issue)
-def generate_subtitles(video, srt_path, video_top_y):
-    subs = pysrt.open(srt_path)
-
-    try:
-        font = ImageFont.truetype(FONT_PATH, 16)  # Very small size
-    except OSError:
-        font = ImageFont.load_default()
-
-    subtitle_clips = []
-
-    for sub in subs:
-        start = sub.start.ordinal / 1000.0
-        duration = sub.duration.ordinal / 1000.0
-        text = sub.text.replace("\n", " ")
-
-        dummy_img = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(dummy_img)
-        bbox = draw.textbbox((0, 0), text, font=font)
-        w, h = bbox[2], bbox[3]
-
-        img = Image.new("RGBA", (w + 10, h + 6), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
-        draw.text((5, 3), text, font=font, fill=(255, 255, 255, 255))  # white text
-
-        subtitle = (
-            ImageClip(np.array(img))
-            .set_duration(duration)
-            .set_start(start)
-            .set_position(("center", video_top_y + 10))  # 👈 Subtitles inside video top
-        )
-
-        subtitle_clips.append(subtitle)
-
-    return subtitle_clips
-
-
-
-def render_stacked_header(title, quote, size, duration):
-    title_font = ImageFont.truetype(FONT_PATH, 50)
-    quote_font = ImageFont.truetype(FONT_PATH, 30)
-    img = Image.new("RGBA", size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    title_bbox = draw.textbbox((0, 0), title, font=title_font)
-    quote_bbox = draw.textbbox((0, 0), quote, font=quote_font)
-    draw.text(((size[0] - title_bbox[2]) / 2, (size[1] / 2) - title_bbox[3]), title, font=title_font, fill=INVESHO_BLUE)
-    draw.text(((size[0] - quote_bbox[2]) / 2, (size[1] / 2) + 10), quote, font=quote_font, fill=WHITE_COLOR)
-    return ImageClip(np.array(img)).set_duration(duration)
-
-def render_branding_text(duration):
-    brand_font = ImageFont.truetype(FONT_PATH, 50)
-    tagline_font = ImageFont.truetype(FONT_PATH, 18)
-    img = Image.new("RGBA", (500, 120), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.text((0, 0), "Invesho", font=brand_font, fill=INVESHO_BLUE)
-    draw.text((0, 60), "Accelerating access to", font=tagline_font, fill=WHITE_COLOR)
-    draw.text((0, 85), "startup capital.", font=tagline_font, fill=WHITE_COLOR)
-    return ImageClip(np.array(img)).set_duration(duration).set_position(("right", "bottom")).margin(right=80, bottom=100)
-
-# --- Instagram Downloader ---
-def download_instagram_video(insta_url):
-    import re
-    import uuid
-    cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
-    match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
-    if not match:
-        raise ValueError("Invalid Instagram Reel URL")
-    reel_id = match.group(1)
-    clean_url = f"https://www.instagram.com/reel/{reel_id}/"
-    unique_id = str(uuid.uuid4())[:8]
-    os.makedirs("downloads", exist_ok=True)
-    ydl_opts = {
-        "ffmpeg_location": FFMPEG_PATH,
-        "format": "bestvideo+bestaudio/best",
-        "outtmpl": f"downloads/video_{unique_id}.%(ext)s",
-        "cookiefile": cookie_path,
-        "quiet": True,
-        "no_warnings": True,
-        "nocheckcertificate": True,
-        "noplaylist": True,
-        "cachedir": False,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(clean_url, download=True)
-        return ydl.prepare_filename(info)
 
 if __name__ == "__main__":
     main()
-
