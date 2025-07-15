@@ -216,13 +216,12 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
 
 # Subtitle generator (fixes the hardcoded video name issue)
-def generate_subtitles(video, srt_path, video_y_offset=0):
-
+def generate_subtitles(video, srt_path):
     subs = pysrt.open(srt_path)
-    
-    # Use a readable but not oversized font
+
+    # Use a very small font
     try:
-        font = ImageFont.truetype(FONT_PATH, 28)  # Smaller than before
+        font = ImageFont.truetype(FONT_PATH, 16)  # 👈 Very small size
     except OSError:
         font = ImageFont.load_default()
 
@@ -233,25 +232,21 @@ def generate_subtitles(video, srt_path, video_y_offset=0):
         duration = sub.duration.ordinal / 1000.0
         text = sub.text.replace("\n", " ")
 
-        img = Image.new("RGBA", (video.w, 50), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
+        # Make a minimal transparent image just enough for the text
+        dummy_img = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(dummy_img)
         bbox = draw.textbbox((0, 0), text, font=font)
+        w, h = bbox[2], bbox[3]
 
-        draw.text(
-            ((video.w - bbox[2]) / 2, (50 - bbox[3]) / 2),
-            text,
-            font=font,
-            fill=(255, 255, 255, 255)
-        )
+        img = Image.new("RGBA", (w + 10, h + 6), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.text((5, 3), text, font=font, fill=(255, 255, 255, 255))  # white text
 
         subtitle = (
             ImageClip(np.array(img))
             .set_duration(duration)
             .set_start(start)
-            .set_position((
-                "center",
-                video_y_offset + video.h - 60  # 👈 Now correctly aligned just above bottom of video
-            ))
+            .set_position(("center", 0))  # 👈 Exactly top edge
         )
 
         subtitle_clips.append(subtitle)
