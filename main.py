@@ -192,12 +192,12 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
     duration = min(max_duration, raw_clip.duration)
     raw = raw_clip.subclip(0, duration)
     cropped = auto_crop(raw)
-    video = cropped.resize(width=WIDTH - 40).set_position(("center", "center"))
+    video = cropped.resize(width=WIDTH - 120).set_position(("center", "center"))
     mask = Image.new("L", video.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, video.size[0], video.size[1]], radius=40, fill=255)
     video = video.set_mask(ImageClip(np.array(mask) / 255).set_duration(video.duration).set_ismask(True))
     bg = ImageClip(BG_IMAGE).resize((WIDTH, HEIGHT)).set_duration(video.duration)
-    header = render_stacked_header(title_text, quote_text, (WIDTH, 200), video.duration).set_position(("center", "top"))
+    header = render_stacked_header(title_text, quote_text, (WIDTH, 200), video.duration).set_position(("center", "top")).margin(top=80)
     branding = render_branding_text(video.duration)
     layers = [bg, video, header, branding]
     if os.path.exists("final.srt"):
@@ -235,16 +235,12 @@ def render_stacked_header(title, quote, size, duration):
 def render_branding_text(duration):
     brand_font = ImageFont.truetype(FONT_PATH, 50)
     tagline_font = ImageFont.truetype(FONT_PATH, 18)
-    img = Image.new("RGBA", (500, 120), (0, 0, 0, 0))  # Already transparent, good
+    img = Image.new("RGBA", (500, 120), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.text((0, 0), "Invesho", font=brand_font, fill=INVESHO_BLUE)
     draw.text((0, 60), "Accelerating access to", font=tagline_font, fill=WHITE_COLOR)
     draw.text((0, 85), "startup capital.", font=tagline_font, fill=WHITE_COLOR)
-    
-    # Align to right
-    return ImageClip(np.array(img)).set_duration(duration)\
-        .set_position(("right", "bottom"))\
-        .margin(right=40, bottom=40)  # reduced margin from 80/100
+    return ImageClip(np.array(img)).set_duration(duration).set_position(("right", "bottom")).margin(right=80, bottom=100)
 
 # --- Instagram Downloader ---
 def download_instagram_video(insta_url):
@@ -273,6 +269,5 @@ def download_instagram_video(insta_url):
         info = ydl.extract_info(clean_url, download=True)
         return ydl.prepare_filename(info)
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     main()
-
