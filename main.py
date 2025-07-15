@@ -10,6 +10,7 @@ import google.generativeai as genai
 import tempfile
 import cv2
 import imageio_ffmpeg
+import moviepy.config as mpy_config
 
 # --- Constants ---
 FONT_PATH = "ui/font.ttf"
@@ -24,15 +25,13 @@ try:
 except AttributeError:
     FFPROBE_PATH = FFMPEG_PATH.replace("ffmpeg", "ffprobe")
 
-# For MoviePy, set ffmpeg binary path if needed
-import moviepy.config as mpy_config
 mpy_config.change_settings({"FFMPEG_BINARY": FFMPEG_PATH})
 
 # --- Load API Keys ---
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# --- Auto-Crop Black Bars ---
+# --- Auto-Crop ---
 def auto_crop(video_clip):
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
     frame = video_clip.get_frame(0)
@@ -44,7 +43,7 @@ def auto_crop(video_clip):
     y1, y2 = ys.min(), ys.max()
     return video_clip.crop(x1=x1, y1=y1, x2=x2, y2=y2)
 
-# --- Whisper Transcription ---
+# --- Transcription ---
 def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
     import subprocess
@@ -70,7 +69,7 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
             full_transcript.append(text)
     return " ".join(full_transcript)
 
-# --- Gemini Quote Generator ---
+# --- Gemini Quote ---
 def generate_short_quote(transcript):
     if not transcript:
         return "Key Insights"
@@ -86,21 +85,18 @@ def generate_short_quote(transcript):
     except Exception:
         return "Key Video Insights"
 
-# --- Instagram Downloader (Error-Free Version) ---
+# --- Instagram Downloader ---
 def download_instagram_video(insta_url):
     import re
     import uuid
-
     cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
     match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
     if not match:
         raise ValueError("Invalid Instagram Reel URL")
-
     reel_id = match.group(1)
     clean_url = f"https://www.instagram.com/reel/{reel_id}/"
     unique_id = str(uuid.uuid4())[:8]
     os.makedirs("downloads", exist_ok=True)
-
     ydl_opts = {
         "ffmpeg_location": FFMPEG_PATH,
         "ffprobe_location": FFPROBE_PATH,
@@ -113,12 +109,11 @@ def download_instagram_video(insta_url):
         "noplaylist": True,
         "cachedir": False,
     }
-
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(clean_url, download=True)
         return ydl.prepare_filename(info)
 
-# --- Subtitle Helpers ---
+# --- Subtitle Utilities ---
 def format_srt_time(seconds):
     import datetime
     t = datetime.timedelta(seconds=seconds)
@@ -168,7 +163,7 @@ def render_branding_text(duration):
     draw.text((0, 85), "startup capital.", font=tagline_font, fill=WHITE_COLOR)
     return ImageClip(np.array(img)).set_duration(duration).set_position(("right", "bottom")).margin(right=80, bottom=100)
 
-# --- Final Video Composer ---
+# --- Final Video Composition ---
 def create_final_video(video_path, title_text, quote_text, max_duration):
     raw_clip = VideoFileClip(video_path)
     duration = min(max_duration, raw_clip.duration)
@@ -187,17 +182,17 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
     final = CompositeVideoClip(layers)
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
 
-# --- Streamlit App ---
+# --- Streamlit UI ---
 def main():
     st.set_page_config(page_title="Invesho Insta Generator", layout="centered")
-    st.title("\ud83d\udcc5 Invesho Instagram Reel Generator")
+    st.title("Invesho Instagram Reel Generator")
 
     st.markdown("### 1. Provide a Video")
     col1, col2 = st.columns(2)
     with col1:
-        insta_url = st.text_input("\ud83d\udcce Instagram Reel URL")
+        insta_url = st.text_input("Instagram Reel URL")
     with col2:
-        uploaded_file = st.file_uploader("\ud83d\udcc4 Or Upload a video (MP4/MOV/WEBM)", type=["mp4", "mov", "webm"])
+        uploaded_file = st.file_uploader("Or Upload a video (MP4/MOV/WEBM)", type=["mp4", "mov", "webm"])
 
     title_text_input = st.text_input("2. Enter Main Title", "Mark Zuckerberg")
     st.subheader("Settings")
@@ -205,12 +200,12 @@ def main():
     use_subs = st.checkbox("Add In-Video Subtitles", value=True)
     st.divider()
 
-    if st.button("\ud83c\udfae Generate Video", type="primary"):
+    if st.button("Generate Video", type="primary"):
         if not (insta_url or uploaded_file) or not title_text_input:
             st.warning("Please provide a video file or Instagram URL and a title.")
             return
         try:
-            with st.spinner("\ud83d\udcc5 Step 1/4: Getting video..."):
+            with st.spinner("Step 1/4: Getting video..."):
                 video_path = None
                 if uploaded_file:
                     temp_path = os.path.join("downloads", uploaded_file.name)
@@ -225,22 +220,22 @@ def main():
             return
 
         try:
-            with st.spinner("\ud83d\udd24 Step 2/4: Transcribing video..."):
+            with st.spinner("Step 2/4: Transcribing video..."):
                 transcript = transcribe_video_and_get_text(video_path, max_duration=video_duration)
         except RuntimeError as e:
             st.error(str(e))
             return
 
-        with st.spinner("\ud83e\udd16 Step 3/4: Generating AI quote..."):
+        with st.spinner("Step 3/4: Generating AI quote..."):
             quote = generate_short_quote(transcript)
 
-        with st.spinner("\ud83c\udfae Step 4/4: Creating final video..."):
+        with st.spinner("Step 4/4: Creating final video..."):
             create_final_video(video_path, title_text_input, quote, video_duration)
 
-        st.success("\u2705 Done! Watch below:")
+        st.success("Done! Watch below:")
         st.video("final_with_subs.mp4")
         with open("final_with_subs.mp4", "rb") as file:
-            st.download_button("\u2b07 Download Video", file, "invesho_reel.mp4")
+            st.download_button("Download Video", file, "invesho_reel.mp4")
 
 if __name__ == "__main__":
     main()
