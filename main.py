@@ -216,12 +216,11 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
 
 # Subtitle generator (fixes the hardcoded video name issue)
-def generate_subtitles(video, srt_path):
+def generate_subtitles(video, srt_path, video_top_y):
     subs = pysrt.open(srt_path)
 
-    # Use a very small font
     try:
-        font = ImageFont.truetype(FONT_PATH, 16)  # 👈 Very small size
+        font = ImageFont.truetype(FONT_PATH, 16)
     except OSError:
         font = ImageFont.load_default()
 
@@ -232,7 +231,6 @@ def generate_subtitles(video, srt_path):
         duration = sub.duration.ordinal / 1000.0
         text = sub.text.replace("\n", " ")
 
-        # Make a minimal transparent image just enough for the text
         dummy_img = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
         draw = ImageDraw.Draw(dummy_img)
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -246,12 +244,13 @@ def generate_subtitles(video, srt_path):
             ImageClip(np.array(img))
             .set_duration(duration)
             .set_start(start)
-            .set_position(("center", 0))  # 👈 Exactly top edge
+            .set_position(("center", video_top_y))  # ⬅️ Top of the actual video
         )
 
         subtitle_clips.append(subtitle)
 
     return subtitle_clips
+
 
 
 def render_stacked_header(title, quote, size, duration):
