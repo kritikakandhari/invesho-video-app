@@ -121,14 +121,24 @@ def generate_short_quote(transcript):
 
 # --- Instagram Downloader ---
 def download_instagram_video(insta_url):
-    cookie_path = os.getenv("IG_COOKIE_PATH", "cookies.txt")
-    match = re.search(r"https://www.instagram.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
+    import re
+    import uuid
+
+    # Get path to cookies.txt from .env
+    cookie_path = os.getenv("IG_COOKIE_PATH")
+
+    if not cookie_path or not os.path.exists(cookie_path):
+        raise FileNotFoundError("cookies.txt not found or IG_COOKIE_PATH is not set correctly in .env")
+
+    match = re.search(r"(?:https?://)?(?:www\.)?instagram\.com/reel/([a-zA-Z0-9_\-]+)/?", insta_url)
     if not match:
         raise ValueError("Invalid Instagram Reel URL")
+
     reel_id = match.group(1)
     clean_url = f"https://www.instagram.com/reel/{reel_id}/"
     unique_id = str(uuid.uuid4())[:8]
     os.makedirs("downloads", exist_ok=True)
+
     ydl_opts = {
         "ffmpeg_location": FFMPEG_PATH,
         "format": "bestvideo+bestaudio/best",
@@ -140,9 +150,14 @@ def download_instagram_video(insta_url):
         "noplaylist": True,
         "cachedir": False,
     }
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(clean_url, download=True)
-        return ydl.prepare_filename(info)
+        try:
+            info = ydl.extract_info(clean_url, download=True)
+            return ydl.prepare_filename(info)
+        except yt_dlp.utils.DownloadError as e:
+            raise RuntimeError(f"Failed to download video: {e}")
+
 
 
 # --- Subtitle Generation ---
