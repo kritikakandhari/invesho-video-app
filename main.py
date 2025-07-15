@@ -44,54 +44,47 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
     import whisper.audio
     import subprocess
-    
-    # Make sure ffmpeg works by checking audio exists
+    import tempfile
+    import soundfile as sf
+
+    # Verify the video has audio
     try:
         audio = AudioFileClip(video_path)
         audio.close()
     except Exception:
         raise RuntimeError("This video has no audio track. Please upload a video with sound.")
 
-# Get ffmpeg path
-    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
-
-# Monkey patch whisper.audio.load_audio to force use our ffmpeg path
+    # Patch whisper.audio.load_audio to use our custom ffmpeg
     def patched_load_audio(file: str, sr: int = 16000):
-        import numpy as np
-        import tempfile
-        import soundfile as sf
-
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             wav_path = tmp.name
 
         cmd = [
-            ffmpeg_path,
-            "-nostdin",
-            "-threads", "0",
+            FFMPEG_PATH,
+            "-y",
             "-i", file,
             "-ac", "1",
             "-ar", str(sr),
             "-f", "wav",
             wav_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         if result.returncode != 0:
-            raise RuntimeError(f"FFmpeg error: {result.stderr}")
+            raise RuntimeError(f"FFmpeg failed: {result.stderr.strip()}")
 
         if not os.path.exists(wav_path):
-            raise FileNotFoundError("Failed to create WAV file.")
- 
-        audio, _ = sf.read(wav_path)
+            raise FileNotFoundError("FFmpeg failed to create the WAV file.")
+
+        audio, _ = sf.read(wav_path, dtype="float32")
         return whisper.audio.pad_or_trim(audio)
 
     whisper.audio.load_audio = patched_load_audio
 
-# Transcribe
     model = whisper.load_model("small")
     result = model.transcribe(video_path, language="en")
 
-# Write subtitles
+    # Save transcript to .srt
     full_transcript = []
     with open("final.srt", "w", encoding="utf-8") as f:
         for i, segment in enumerate(result["segments"]):
@@ -105,6 +98,7 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
             full_transcript.append(text)
 
     return " ".join(full_transcript)
+
 
 
 # --- Time Formatter ---
