@@ -187,34 +187,37 @@ def main():
             st.download_button("Download Video", file, "invesho_reel.mp4")
 
 # --- Final Video Composition ---
+# Final video creator (uses actual video file provided, no hardcoded name)
 def create_final_video(video_path, title_text, quote_text, max_duration):
     raw_clip = VideoFileClip(video_path)
     duration = min(max_duration, raw_clip.duration)
     raw = raw_clip.subclip(0, duration)
+
     cropped = auto_crop(raw)
     video = cropped.resize(width=WIDTH - 40).set_position(("center", "center"))
+
+    # Rounded corners mask
     mask = Image.new("L", video.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, video.size[0], video.size[1]], radius=40, fill=255)
     video = video.set_mask(ImageClip(np.array(mask) / 255).set_duration(video.duration).set_ismask(True))
+
     bg = ImageClip(BG_IMAGE).resize((WIDTH, HEIGHT)).set_duration(video.duration)
     header = render_stacked_header(title_text, quote_text, (WIDTH, 200), video.duration).set_position(("center", "top"))
     branding = render_branding_text(video.duration)
+
     layers = [bg, video, header, branding]
+
+    # Add subtitles only if .srt file exists
     if os.path.exists("final.srt"):
         layers.extend(generate_subtitles(video, "final.srt", video_y_offset=video.pos[1]))
-    final = CompositeVideoClip(layers)
+
+    final = CompositeVideoClip(layers, size=(WIDTH, HEIGHT))
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
 
-
-
-# Load video
-video = VideoFileClip("invesho_reel (2).mp4")
-video_position_y = 100  # Jitna background pe video offset hai (agar koi ho)
-
-# Subtitle function
-def generate_subtitles(video, srt_path, video_y_offset=0):
+# Subtitle generator (fixes the hardcoded video name issue)
+def generate_subtitles(video_clip, srt_path, video_y_offset=0):
     subs = pysrt.open(srt_path)
-    font = ImageFont.truetype("Arial.ttf", 36)  # Change font if needed
+    font = ImageFont.truetype("Arial.ttf", 36)  # Or change to FONT_PATH
 
     subtitle_clips = []
 
@@ -223,12 +226,12 @@ def generate_subtitles(video, srt_path, video_y_offset=0):
         duration = sub.duration.ordinal / 1000.0
         text = sub.text.replace("\n", " ")
 
-        img = Image.new("RGBA", (video.w, 60), (0, 0, 0, 0))
+        img = Image.new("RGBA", (video_clip.w, 60), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         bbox = draw.textbbox((0, 0), text, font=font)
 
         draw.text(
-            ((video.w - bbox[2]) / 2, (60 - bbox[3]) / 2),
+            ((video_clip.w - bbox[2]) / 2, (60 - bbox[3]) / 2),
             text,
             font=font,
             fill=(255, 255, 255, 255)
@@ -240,25 +243,13 @@ def generate_subtitles(video, srt_path, video_y_offset=0):
             .set_start(start)
             .set_position((
                 "center",
-                video_y_offset + video.h - 70  # 👈 Subtitle placed on VIDEO bottom
+                video_y_offset + video_clip.h - 70  # Subtitle placed on VIDEO bottom
             ))
         )
 
         subtitle_clips.append(subtitle)
 
     return subtitle_clips
-
-# Example call
-subtitles = generate_subtitles(video, "your_subtitles.srt", video_y_offset=100)
-
-# Combine (Assuming background or canvas is being used)
-final = CompositeVideoClip([
-    # background,  # If using any
-    video.set_position(("center", 100)),
-    *subtitles
-], size=(1080, 1920))  # change size if needed
-
-final.write_videofile("final_with_subs.mp4", fps=30)
 
 
 def render_stacked_header(title, quote, size, duration):
