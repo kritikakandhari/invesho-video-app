@@ -42,18 +42,50 @@ def auto_crop(video_clip):
 # --- Transcription ---
 def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
+    import whisper.audio
+    import subprocess
     
+    # Make sure ffmpeg works by checking audio exists
     try:
         audio = AudioFileClip(video_path)
         audio.close()
     except Exception:
         raise RuntimeError("This video has no audio track. Please upload a video with sound.")
 
+# Get ffmpeg path
+    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+
+# Monkey patch whisper.audio.load_audio to force use our ffmpeg path
+    def patched_load_audio(file: str, sr: int = 16000):
+        import numpy as np
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            wav_path = tmp.name
+
+        cmd = [
+            ffmpeg_path,
+            "-nostdin",
+            "-threads", "0",
+            "-i", file,
+            "-ac", "1",
+            "-ar", str(sr),
+            "-f", "wav",
+            wav_path
+        ]
+        subprocess.run(cmd, check=True)
+
+        import soundfile as sf
+        audio, _ = sf.read(wav_path)
+        return whisper.audio.pad_or_trim(audio)
+
+    whisper.audio.load_audio = patched_load_audio
+
+# Transcribe
     model = whisper.load_model("small")
-    import whisper.audio
-    os.environ["PATH"] = os.path.dirname(FFMPEG_PATH) + os.pathsep + os.environ.get("PATH", "")
     result = model.transcribe(video_path, language="en")
 
+# Write subtitles
     full_transcript = []
     with open("final.srt", "w", encoding="utf-8") as f:
         for i, segment in enumerate(result["segments"]):
@@ -65,7 +97,9 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
             f.write(f"{i+1}\n")
             f.write(f"{format_srt_time(start)} --> {format_srt_time(end)}\n{text}\n\n")
             full_transcript.append(text)
+
     return " ".join(full_transcript)
+
 
 # --- Time Formatter ---
 def format_srt_time(seconds):
