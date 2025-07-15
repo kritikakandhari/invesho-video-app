@@ -8,7 +8,7 @@ import pysrt
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
-from moviepy.editor import VideoFileClip, CompositeVideoClip, ImageClip
+from moviepy.editor import VideoFileClip, CompositeVideoClip, ImageClip, AudioFileClip
 import google.generativeai as genai
 import cv2
 import imageio_ffmpeg
@@ -41,11 +41,11 @@ def auto_crop(video_clip):
 
 def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
-    if not os.path.exists(FFPROBE_PATH):
-        raise RuntimeError("ffprobe not found. Cannot check audio.")
-    result = subprocess.run([FFPROBE_PATH, "-i", video_path, "-show_streams", "-select_streams", "a", "-loglevel", "error"], capture_output=True, text=True)
-    if not result.stdout.strip():
-        raise RuntimeError("No audio found. Please upload a video with sound.")
+    try:
+        audio = AudioFileClip(video_path)
+        audio.close()
+    except Exception:
+        raise RuntimeError("This video has no audio track. Please upload a video with sound.")
 
     model = whisper.load_model("small")
     result = model.transcribe(video_path, language="en")
