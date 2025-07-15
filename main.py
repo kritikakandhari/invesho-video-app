@@ -42,6 +42,7 @@ def auto_crop(video_clip):
 # --- Transcription ---
 def transcribe_video_and_get_text(video_path, max_duration=None):
     import whisper
+    
     try:
         audio = AudioFileClip(video_path)
         audio.close()
@@ -49,6 +50,8 @@ def transcribe_video_and_get_text(video_path, max_duration=None):
         raise RuntimeError("This video has no audio track. Please upload a video with sound.")
 
     model = whisper.load_model("small")
+    import whisper.audio
+    os.environ["PATH"] = os.path.dirname(FFMPEG_PATH) + os.pathsep + os.environ.get("PATH", "")
     result = model.transcribe(video_path, language="en")
 
     full_transcript = []
