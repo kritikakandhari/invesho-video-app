@@ -217,10 +217,6 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
 
 # Subtitle generator (fixes the hardcoded video name issue)
 def generate_subtitles(video, srt_path, video_y_offset=0):
-    import pysrt
-    from PIL import ImageFont, ImageDraw, Image
-    import numpy as np
-    from moviepy.editor import ImageClip
 
     subs = pysrt.open(srt_path)
     
