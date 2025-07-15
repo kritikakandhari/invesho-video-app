@@ -179,7 +179,8 @@ def main():
             quote = generate_short_quote(transcript)
 
         with st.spinner("Step 4/4: Creating final video..."):
-            create_final_video(video_path, title_text_input, quote, video_duration)
+            create_final_video(video_path, title_text_input, quote, video_duration, use_subs)
+
 
         st.success("Done! Watch below:")
         st.video("final_with_subs.mp4")
@@ -188,7 +189,7 @@ def main():
 
 # --- Final Video Composition ---
 # Final video creator (uses actual video file provided, no hardcoded name)
-def create_final_video(video_path, title_text, quote_text, max_duration):
+def create_final_video(video_path, title_text, quote_text, max_duration, use_subs):
     raw_clip = VideoFileClip(video_path)
     duration = min(max_duration, raw_clip.duration)
     raw = raw_clip.subclip(0, duration)
@@ -207,10 +208,12 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
 
     layers = [bg, video, header, branding]
 
+    # Calculate top Y of video (for subtitles positioning)
+    video_top_y = (HEIGHT - video.size[1]) // 2
+
     # Add subtitles only if .srt file exists
-    if os.path.exists("final.srt"):
-        layers.extend(generate_subtitles(video, "final.srt"))
- 
+    if use_subs and os.path.exists("final.srt"):
+        layers.extend(generate_subtitles(video, "final.srt", video_top_y))
 
     final = CompositeVideoClip(layers, size=(WIDTH, HEIGHT))
     final.write_videofile("final_with_subs.mp4", fps=24, codec="libx264")
@@ -220,7 +223,7 @@ def generate_subtitles(video, srt_path, video_top_y):
     subs = pysrt.open(srt_path)
 
     try:
-        font = ImageFont.truetype(FONT_PATH, 16)
+        font = ImageFont.truetype(FONT_PATH, 16)  # Very small size
     except OSError:
         font = ImageFont.load_default()
 
@@ -244,7 +247,7 @@ def generate_subtitles(video, srt_path, video_top_y):
             ImageClip(np.array(img))
             .set_duration(duration)
             .set_start(start)
-            .set_position(("center", video_top_y))  # ⬅️ Top of the actual video
+            .set_position(("center", video_top_y + 10))  # 👈 Subtitles inside video top
         )
 
         subtitle_clips.append(subtitle)
