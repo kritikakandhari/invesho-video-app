@@ -192,12 +192,12 @@ def create_final_video(video_path, title_text, quote_text, max_duration):
     duration = min(max_duration, raw_clip.duration)
     raw = raw_clip.subclip(0, duration)
     cropped = auto_crop(raw)
-    video = cropped.resize(width=WIDTH - 120).set_position(("center", "center"))
+    video = cropped.resize(width=WIDTH - 40).set_position(("center", "center"))
     mask = Image.new("L", video.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, video.size[0], video.size[1]], radius=40, fill=255)
     video = video.set_mask(ImageClip(np.array(mask) / 255).set_duration(video.duration).set_ismask(True))
     bg = ImageClip(BG_IMAGE).resize((WIDTH, HEIGHT)).set_duration(video.duration)
-    header = render_stacked_header(title_text, quote_text, (WIDTH, 200), video.duration).set_position(("center", "top")).margin(top=80)
+    header = render_stacked_header(title_text, quote_text, (WIDTH, 200), video.duration).set_position(("center", "top"))
     branding = render_branding_text(video.duration)
     layers = [bg, video, header, branding]
     if os.path.exists("final.srt"):
@@ -269,5 +269,6 @@ def download_instagram_video(insta_url):
         info = ydl.extract_info(clean_url, download=True)
         return ydl.prepare_filename(info)
 
-if __name__ == "_main_":
+if __name__ == "__main__":
     main()
+
