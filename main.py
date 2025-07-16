@@ -211,17 +211,19 @@ def render_stacked_header(title, quote, size, duration):
 def render_branding_text(duration):
     brand_font = ImageFont.truetype(FONT_PATH, 50)
     tagline_font = ImageFont.truetype(FONT_PATH, 18)
+
     img = Image.new("RGBA", (500, 120), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.text((0, 0), "Invesho", font=brand_font, fill=INVESHO_BLUE)
     draw.text((0, 60), "Accelerating access to", font=tagline_font, fill=WHITE_COLOR)
     draw.text((0, 85), "startup capital.", font=tagline_font, fill=WHITE_COLOR)
-    return ImageClip(np.array(img)).set_duration(duration).set_position(("right", "bottom")).margin(right=80, bottom=100)
 
-    branding_clip = ImageClip(np.array(img), ismask=False).set_duration(duration)
-    branding_clip = branding_clip.set_position(("right", "bottom")).margin(right=80, bottom=100, opacity=0)
+    branding_clip = ImageClip(np.array(img)).set_duration(duration)
 
-    return branding_clip 
+    # 👇 Instead of right-bottom with margin, use absolute positioning inside safe zone
+    branding_clip = branding_clip.set_position(("right", HEIGHT - 180))
+
+    return branding_clip
 
 # --- Final Video Composer ---
 def create_final_video(video_path, title_text, quote_text, max_duration, use_subs):
