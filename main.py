@@ -144,6 +144,10 @@ def download_instagram_video(insta_url):
         "format": "bestvideo+bestaudio/best",
         "outtmpl": f"downloads/video_{unique_id}.%(ext)s",
         "cookiefile": cookie_path,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+        "http_headers": {
+            "Accept-Language": "en-US,en;q=0.9",
+        },
         "quiet": True,
         "no_warnings": True,
         "nocheckcertificate": True,
