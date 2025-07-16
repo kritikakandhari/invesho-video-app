@@ -218,6 +218,10 @@ def render_branding_text(duration):
     draw.text((0, 85), "startup capital.", font=tagline_font, fill=WHITE_COLOR)
     return ImageClip(np.array(img)).set_duration(duration).set_position(("right", "bottom")).margin(right=80, bottom=100)
 
+    branding_clip = ImageClip(np.array(img), ismask=False).set_duration(duration)
+    branding_clip = branding_clip.set_position(("right", "bottom")).margin(right=80, bottom=100, opacity=0)
+
+    return branding_clip 
 
 # --- Final Video Composer ---
 def create_final_video(video_path, title_text, quote_text, max_duration, use_subs):
