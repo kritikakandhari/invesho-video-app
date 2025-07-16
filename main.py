@@ -168,7 +168,7 @@ def download_instagram_video(insta_url):
 def generate_subtitles(video, srt_path, video_top_y):
     subs = pysrt.open(srt_path)
     try:
-        font = ImageFont.truetype(FONT_PATH, 16)
+        font = ImageFont.truetype(FONT_PATH, 20)
     except OSError:
         font = ImageFont.load_default()
 
