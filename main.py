@@ -221,10 +221,14 @@ def render_branding_text(duration):
 
     branding_clip = ImageClip(np.array(img)).set_duration(duration)
 
-    # 👇 Shift branding to bottom-right INSIDE the canvas
-    branding_clip = branding_clip.set_position((WIDTH - 500 - 40, HEIGHT - 120 - 60))
+    # ❗ Force precise pixel location (bottom-right with padding)
+    padding_right = 40
+    padding_bottom = 40
+    x_pos = WIDTH - 500 - padding_right
+    y_pos = HEIGHT - 120 - padding_bottom
 
-    return branding_clip
+    return branding_clip.set_position((x_pos, y_pos))
+
 
 
 # --- Final Video Composer ---
